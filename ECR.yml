@@ -1,0 +1,11 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  ECR private repository
+Resources:
+  MyRepository: 
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: ghost
+      Tags:
+        - Key: Project
+          Value: CloudX

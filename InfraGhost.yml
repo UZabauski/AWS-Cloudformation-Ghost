@@ -1,0 +1,1009 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Application solution requires high available and secure setup on AWS using DataBase,
+  Filesystem and Compute services.
+Parameters:
+  VPCName:
+    Description: The name of the VPC
+    Type: String
+    Default: cloudx
+  MyIp:
+    Description: My IP address
+    Type: String
+    Default: 86.57.255.94/32
+  CloudXContainer:
+    Description: ECS container name
+    Type: String
+    Default: cloudxfargate 
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: 10.10.0.0/16
+    Public0:
+      CIDR: 10.10.1.0/24
+    Public1:
+      CIDR: 10.10.2.0/24
+    Public2:
+      CIDR: 10.10.3.0/24   
+    Private0:
+      CIDR: 10.10.10.0/24
+    Private1:
+      CIDR: 10.10.11.0/24
+    Private2:
+      CIDR: 10.10.12.0/24
+    DataBase0:
+      CIDR: 10.10.20.0/24
+    DataBase1:
+      CIDR: 10.10.21.0/24
+    DataBase2:
+      CIDR: 10.10.22.0/24
+
+Resources:
+# Create Network stack
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - VPC
+          - CIDR
+      Tags:
+        - Key: Name
+          Value:
+            Ref: VPCName
+        - Key: Project
+          Value: CloudX
+  PublicSubnet0:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - Public0
+          - CIDR
+      AvailabilityZone: 'us-east-1a'
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+        - Key: Project
+          Value: CloudX
+        - Key: Name
+          Value: public_a
+  PublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - Public1
+          - CIDR
+      AvailabilityZone: 'us-east-1b'
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+        - Key: Project
+          Value: CloudX
+        - Key: Name
+          Value: public_b
+  PublicSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - Public2
+          - CIDR
+      AvailabilityZone: 'us-east-1c'
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+        - Key: Project
+          Value: CloudX
+        - Key: Name
+          Value: public_c
+
+  PrivateSubnet0:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - Private0
+          - CIDR
+      AvailabilityZone: 'us-east-1a'
+      Tags:
+        - Key: Project
+          Value: CloudX
+        - Key: Name
+          Value: private_a
+  PrivateSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - Private1
+          - CIDR
+      AvailabilityZone: 'us-east-1b'
+      Tags:
+        - Key: Project
+          Value: CloudX
+        - Key: Name
+          Value: private_b
+  PrivateSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - Private2
+          - CIDR
+      AvailabilityZone: 'us-east-1c'
+      Tags:
+        - Key: Project
+          Value: CloudX
+        - Key: Name
+          Value: private_c
+
+  DataBaseSubnet0:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - DataBase0
+          - CIDR
+      AvailabilityZone: 'us-east-1a'
+      Tags:
+        - Key: Project
+          Value: CloudX
+        - Key: Name
+          Value: private_db_a
+  DataBaseSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - DataBase1
+          - CIDR
+      AvailabilityZone: 'us-east-1b'
+      Tags:
+        - Key: Project
+          Value: CloudX
+        - Key: Name
+          Value: private_db_b
+  DataBaseSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        'Fn::FindInMap':
+          - SubnetConfig
+          - DataBase2
+          - CIDR
+      AvailabilityZone: 'us-east-1c'
+      Tags:
+        - Key: Project
+          Value: CloudX
+        - Key: Name
+          Value: private_db_c
+
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: cloudx-igw
+        - Key: Project
+          Value: CloudX
+  InternetGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: public_rt
+        - Key: Project
+          Value: CloudX
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+  PublicSubnetRouteTableAssociation0:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId:
+        Ref: PublicSubnet0
+      RouteTableId:
+        Ref: PublicRouteTable
+  PublicSubnetRouteTableAssociation1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId:
+        Ref: PublicSubnet1
+      RouteTableId:
+        Ref: PublicRouteTable
+  PublicSubnetRouteTableAssociation2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId:
+        Ref: PublicSubnet2
+      RouteTableId:
+        Ref: PublicRouteTable
+
+###  NAT is not used here, just in case
+  # NATIP:
+  #   Type: 'AWS::EC2::EIP'
+  #   Properties:
+  #     Domain: vpc
+  #     Tags:
+  #       - Key: Name
+  #         Value: CloudX-NAT
+  #       - Key: Project
+  #         Value: CloudX
+  # NATGateway:
+  #   Type: 'AWS::EC2::NatGateway'
+  #   Properties:
+  #     AllocationId:
+  #       'Fn::GetAtt':
+  #         - NATIP
+  #         - AllocationId
+  #     SubnetId:
+  #       Ref: PublicSubnet0
+  #     Tags:
+  #       - Key: Name
+  #         Value: CloudX-NAT-gateway
+  #       - Key: Project
+  #         Value: CloudX
+  PrivateRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: private_rt
+        - Key: Project
+          Value: CloudX
+  # PrivateRouteToInternet:
+  #   Type: 'AWS::EC2::Route'
+  #   Properties:
+  #     RouteTableId:
+  #       Ref: PrivateRouteTable
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId:
+  #       Ref: NATGateway
+  PrivateSubnetRouteTableAssociation0:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet0
+      RouteTableId:
+        Ref: PrivateRouteTable
+  PrivateSubnetRouteTableAssociation1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet1
+      RouteTableId:
+        Ref: PrivateRouteTable
+  PrivateSubnetRouteTableAssociation2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId:
+        Ref: PrivateSubnet2
+      RouteTableId:
+        Ref: PrivateRouteTable
+
+# Create security groups
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allows access for ec2 instances.
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: ec2_pool
+        - Key: Project
+          Value: CloudX
+  EC2SecurityGroupIngress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp:
+        Ref: MyIp
+      GroupId:
+        Fn::GetAtt:
+          - EC2SecurityGroup
+          - GroupId
+  EC2SecurityGroupIngress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 2049
+      ToPort: 2049
+      CidrIp: 10.10.0.0/16
+      GroupId:
+        Fn::GetAtt:
+          - EC2SecurityGroup
+          - GroupId
+  EC2SecurityGroupIngress3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 2368
+      ToPort: 2368
+      SourceSecurityGroupId: 
+        Fn::GetAtt:
+          - ALBSecurityGroup
+          - GroupId
+      GroupId:
+        Fn::GetAtt:
+          - EC2SecurityGroup
+          - GroupId
+
+  FargateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allows access for fargate instances.
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: fargate_pool
+        - Key: Project
+          Value: CloudX
+  FargateSecurityGroupIngress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 2049
+      ToPort: 2049
+      CidrIp: 10.10.0.0/16
+      GroupId:
+        Fn::GetAtt:
+          - FargateSecurityGroup
+          - GroupId
+  FargateSecurityGroupIngress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 2368
+      ToPort: 2368
+      SourceSecurityGroupId: 
+        Fn::GetAtt:
+          - ALBSecurityGroup
+          - GroupId
+      GroupId:
+        Fn::GetAtt:
+          - FargateSecurityGroup
+          - GroupId
+
+  MySQLSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Defines access to ghost db.
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId: 
+          Fn::GetAtt:
+            - EC2SecurityGroup
+            - GroupId
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId: 
+          Fn::GetAtt:
+            - FargateSecurityGroup
+            - GroupId
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        CidrIp: 127.0.0.1/32
+      Tags:
+        - Key: Name
+          Value: mysql
+        - Key: Project
+          Value: CloudX
+  EFSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Defines access to efs mount points.
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 2049
+        ToPort: 2049
+        SourceSecurityGroupId: 
+          Fn::GetAtt:
+            - EC2SecurityGroup
+            - GroupId
+      - IpProtocol: tcp
+        FromPort: 2049
+        ToPort: 2049
+        SourceSecurityGroupId: 
+          Fn::GetAtt:
+            - FargateSecurityGroup
+            - GroupId
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        CidrIp: 10.10.0.0/16
+      Tags:
+        - Key: Name
+          Value: efs
+        - Key: Project
+          Value: CloudX
+  ALBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Defines access to alb.
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: alb
+        - Key: Project
+          Value: CloudX
+  ALBSecurityGroupIngress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp:
+        Ref: MyIp
+      GroupId:
+        Fn::GetAtt:
+          - ALBSecurityGroup
+          - GroupId
+  ALBSecurityGroupEgress1:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      IpProtocol: -1
+      DestinationSecurityGroupId: 
+        Fn::GetAtt:
+          - EC2SecurityGroup
+          - GroupId
+      GroupId:
+        Fn::GetAtt:
+          - ALBSecurityGroup
+          - GroupId
+  ALBSecurityGroupEgress2:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      IpProtocol: -1
+      DestinationSecurityGroupId: 
+        Fn::GetAtt:
+          - FargateSecurityGroup
+          - GroupId
+      GroupId:
+        Fn::GetAtt:
+          - ALBSecurityGroup
+          - GroupId
+
+  VPCEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Defines access to vpc endpoints.
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: 10.10.0.0/16
+      SecurityGroupEgress:
+      - IpProtocol: -1
+        CidrIp: 127.0.0.1/32
+      Tags:
+        - Key: Name
+          Value: vpc_endpoint
+        - Key: Project
+          Value: CloudX
+
+# Create Database
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: ghost database subnet group
+      DBSubnetGroupName: ghost
+      SubnetIds: 
+        - Ref: DataBaseSubnet0
+        - Ref: DataBaseSubnet1
+        - Ref: DataBaseSubnet2
+      Tags: 
+        - Key: Project
+          Value: CloudX
+  DB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: ghost
+      DBInstanceClass: db.t2.micro
+      DBSubnetGroupName: ghost
+      AllocatedStorage: '20'
+      Engine: MySQL
+      EngineVersion: '8.0.28'
+      StorageType: gp2
+      MultiAZ: true
+      MasterUsername: admin
+      MasterUserPassword: "{{resolve:ssm-secure:/ghost/dbpassw:1}}"
+      VPCSecurityGroups:
+        - Ref: MySQLSecurityGroup
+      Tags: 
+        - Key: Project
+          Value: CloudX
+
+# Create IAM roles and policy
+  CloudXPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: cloudxpolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'ec2:Describe*'
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:BatchCheckLayerAvailability'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'logs:CreateLogGroup'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+              - 'ssm:GetParameters'
+              - 'ssm:GetParameter'
+              - 'secretsmanager:GetSecretValue'
+              - 'kms:Decrypt'
+              - 'elasticfilesystem:DescribeFileSystems'
+              - 'elasticfilesystem:ClientMount'
+              - 'elasticfilesystem:ClientWrite'
+              - 'rds:DescribeDBInstances'
+            Resource: '*'
+      Roles: 
+        - Ref: EC2Role
+        - Ref: ECSRole
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      RoleName: ghost_app_ec2
+      Tags: 
+        - Key: Project
+          Value: CloudX
+  EC2InstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Path: "/"
+      Roles: 
+        - Ref: EC2Role
+  ECSRole:
+    Type: AWS::IAM::Role
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ecs-tasks.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      RoleName: ghost_app_ecs
+      Tags: 
+        - Key: Project
+          Value: CloudX
+
+# Create EFS
+  EFS:
+    Type: 'AWS::EFS::FileSystem'
+    Properties:
+      FileSystemTags:
+        - Key: Name
+          Value: ghost_content
+        - Key: Project
+          Value: CloudX
+  MountTarget1: 
+    Type: AWS::EFS::MountTarget
+    Properties: 
+      FileSystemId: 
+        Ref: EFS
+      SubnetId: 
+        Ref: "PrivateSubnet0"
+      SecurityGroups: 
+        - Ref: "EFSSecurityGroup"
+  MountTarget2: 
+    Type: AWS::EFS::MountTarget
+    Properties: 
+      FileSystemId: 
+        Ref: EFS
+      SubnetId: 
+        Ref: "PrivateSubnet1"
+      SecurityGroups: 
+        - Ref: "EFSSecurityGroup"
+  MountTarget3: 
+    Type: AWS::EFS::MountTarget
+    Properties: 
+      FileSystemId: 
+        Ref: EFS
+      SubnetId: 
+        Ref: "PrivateSubnet2"
+      SecurityGroups: 
+        - Ref: "EFSSecurityGroup"
+
+# Create Application load balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      SecurityGroups:
+        - Ref: ALBSecurityGroup
+      Subnets:
+        - Ref: PublicSubnet0
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
+      Tags:
+        - Key: Project
+          Value: CloudX
+  EC2TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: ghost-ec2
+      Port: 2368
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Project
+          Value: CloudX
+  ECSTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: ghost-fargate
+      Port: 2368
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      TargetType: ip
+      Tags:
+        - Key: Project
+          Value: CloudX
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref EC2TargetGroup
+                Weight: 1
+              - TargetGroupArn: !Ref ECSTargetGroup
+                Weight: 1
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+# Create Launch Template
+  MyLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: ghost
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - EC2InstanceProfile
+            - Arn
+        DisableApiTermination: true
+        ImageId: ami-0f9fc25dd2506cf6d
+        InstanceType: t2.micro
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -x
+
+            export HOME="/root"
+            SSM_DB_PASSWORD="/ghost/dbpassw"
+            #GHOST_PACKAGE="ghost-4.12.1.tgz"
+            GHOST_PACKAGE="ghost-4.29.0.tgz"
+            DB_USER="admin"
+            DB_NAME="ghost"
+
+            REGION=$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/[a-z]$//')
+            DB_URL=$(aws rds describe-db-instances --query "DBInstances[*].Endpoint.Address" --region $REGION --output text)
+            DB_PASSWORD=$(aws ssm get-parameter --name $SSM_DB_PASSWORD --query Parameter.Value --with-decryption --region $REGION --output text)
+            EFS_ID=$(aws efs describe-file-systems --query 'FileSystems[?Name==`ghost_content`].FileSystemId' --region $REGION --output text)
+
+            ### Install pre-reqs
+            curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+            sudo python3 /tmp/get-pip.py
+            sudo /usr/local/bin/pip install botocore
+            curl -sL https://rpm.nodesource.com/setup_14.x | sudo bash -
+            sudo yum install -y nodejs
+            sudo npm install pm2 -g
+
+            ### EFS mount
+            mkdir -p /var/lib/ghost/content
+            yum -y install amazon-efs-utils
+            mount -t efs -o tls $EFS_ID:/ /var/lib/ghost/content
+
+            ### Configure and start ghost app
+            mkdir ghost
+            wget https://registry.npmjs.org/ghost/-/$GHOST_PACKAGE
+            tar -xzvf $GHOST_PACKAGE -C ghost --strip-components=1
+            rm $GHOST_PACKAGE && cd ghost
+
+            cat << EOF >> config.production.json
+            {
+                "database": {
+                        "client": "mysql",
+                        "connection": {
+                                "host": "$DB_URL",
+                                "port": 3306,
+                                "user": "$DB_USER",
+                                "password": "$DB_PASSWORD",
+                                "database": "$DB_NAME"
+                        }
+                },
+                "server": {
+                        "host": "0.0.0.0",
+                        "port": "2368"
+                },
+                "paths": {
+                    "contentPath": "/ghost/content/"
+                }
+            }
+            EOF
+
+            rsync -axvr --ignore-existing /ghost/content/ /var/lib/ghost/content || true
+            chmod 755 -R /var/lib/ghost
+
+            npm install
+
+            NODE_ENV=production pm2 start /ghost/index.js --name "ghost" -i max
+        KeyName: ghost-ec2-pool
+        SecurityGroupIds:
+        - Ref: EC2SecurityGroup
+
+# Create Auto-scaling group
+  CloudxASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: DB
+    Properties:
+      AutoScalingGroupName: ghost_ec2_pool
+      MinSize: '2'
+      MaxSize: '3'
+      DesiredCapacity: '2'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref MyLaunchTemplate
+        Version: !GetAtt MyLaunchTemplate.LatestVersionNumber
+      TargetGroupARNs:
+        - Ref: EC2TargetGroup
+      VPCZoneIdentifier:
+        - Ref: PublicSubnet0
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
+
+# Create ECS resources
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: ghost
+      Tags:
+        - Key: Project
+          Value: CloudX
+
+  SSMInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssm'
+      VpcId: !Ref VPC
+      SubnetIds: 
+        - Ref: PrivateSubnet0
+        - Ref: PrivateSubnet1
+        - Ref: PrivateSubnet2
+      SecurityGroupIds:
+        - Ref: VPCEndpointSecurityGroup
+  ECRDKRInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcId: !Ref VPC
+      SubnetIds: 
+        - Ref: PrivateSubnet0
+        - Ref: PrivateSubnet1
+        - Ref: PrivateSubnet2
+      SecurityGroupIds:
+        - Ref: VPCEndpointSecurityGroup
+  ECRAPIInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcId: !Ref VPC
+      SubnetIds: 
+        - Ref: PrivateSubnet0
+        - Ref: PrivateSubnet1
+        - Ref: PrivateSubnet2
+      SecurityGroupIds:
+        - Ref: VPCEndpointSecurityGroup
+  EFSInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.elasticfilesystem'
+      VpcId: !Ref VPC
+      SubnetIds: 
+        - Ref: PrivateSubnet0
+        - Ref: PrivateSubnet1
+        - Ref: PrivateSubnet2
+      SecurityGroupIds:
+        - Ref: VPCEndpointSecurityGroup
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Gateway
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref VPC
+      RouteTableIds:
+        - Ref: PrivateRouteTable
+  CWInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.monitoring'
+      VpcId: !Ref VPC
+      SubnetIds: 
+        - Ref: PrivateSubnet0
+        - Ref: PrivateSubnet1
+        - Ref: PrivateSubnet2
+      SecurityGroupIds:
+        - Ref: VPCEndpointSecurityGroup
+  CWLogsInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcId: !Ref VPC
+      SubnetIds: 
+        - Ref: PrivateSubnet0
+        - Ref: PrivateSubnet1
+        - Ref: PrivateSubnet2
+      SecurityGroupIds:
+        - Ref: VPCEndpointSecurityGroup
+  SMInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.secretsmanager'
+      VpcId: !Ref VPC
+      SubnetIds: 
+        - Ref: PrivateSubnet0
+        - Ref: PrivateSubnet1
+        - Ref: PrivateSubnet2
+      SecurityGroupIds:
+        - Ref: VPCEndpointSecurityGroup
+  ECSTaskDefinition: 
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: DB
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !Ref ECSRole
+      Cpu: 256
+      Memory: 1024
+      NetworkMode: "awsvpc"
+      ContainerDefinitions: 
+        - Name: !Ref CloudXContainer
+          LogConfiguration:
+            LogDriver: awslogs
+            Options: 
+              awslogs-group : awslogs-ecs
+              awslogs-region: us-east-1
+              awslogs-create-group: true
+              awslogs-stream-prefix: awslogs-example
+          MountPoints: 
+            - SourceVolume: "ghost_content"
+              ContainerPath: "/var/lib/ghost/content"
+          PortMappings:
+            - ContainerPort: 2368
+              Protocol: tcp
+          Image: "312119707748.dkr.ecr.us-east-1.amazonaws.com/ghost:latest"
+          Essential: true
+          Environment:
+            - Name: database__client
+              Value: 'mysql'
+            - Name: database__connection__host
+              Value: !GetAtt DB.Endpoint.Address
+            - Name: database__connection__user
+              Value: 'admin'
+            - Name: database__connection__database
+              Value: 'ghost'
+            - Name: url
+              Value: 'http://localhost:8080'
+          Secrets:
+            - Name: database__connection__password
+              ValueFrom: "arn:aws:ssm:us-east-1:312119707748:parameter/ghost/dbpassw"
+      Volumes:
+        - Name: "ghost_content"
+          EFSVolumeConfiguration:
+            FilesystemId: !Ref EFS
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn: ALBListener
+    Properties:
+      Cluster: !Ref ECSCluster
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: !Ref CloudXContainer
+          ContainerPort: 2368
+          TargetGroupArn: !Ref ECSTargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - Ref: FargateSecurityGroup
+          Subnets:
+            - Ref: PrivateSubnet0
+            - Ref: PrivateSubnet1
+            - Ref: PrivateSubnet2
+      TaskDefinition: !Ref ECSTaskDefinition
+      ServiceName: cloudxservice
+      Tags:
+        - Key: Project
+          Value: CloudX
+
+# Monitoring
