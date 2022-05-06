@@ -34,6 +34,7 @@ docker tag ghost:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/ghost:lates
 docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/ghost:latest
 ```
 5. Set up all infrastructure. Execute `InfraGhost.yml` in Cloudformation.
+6. Set up CloudWatch Dashboard. Execute `CW.yml` in Cloudformation.
 
 ## References
 1. Ghost configuration: https://ghost.org/docs/config/
